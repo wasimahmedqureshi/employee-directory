@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Rajesh Kumar Sharma",
+    "designation": "Technical Assistant",
+    "phone": "9829012345",
+    "email": "rajesh.sharma@rajasthan.gov.in",
+    "department": "DoIT&C Jaipur"
+  },
+  {
+    "name": "Priya Singh",
+    "designation": "Programmer",
+    "phone": "9829112345",
+    "email": "priya.singh@rajasthan.gov.in",
+    "department": "DoIT&C Jodhpur"
+  },
+  {
+    "name": "Amit Verma",
+    "designation": "System Analyst",
+    "phone": "9829212345",
+    "email": "amit.verma@rajasthan.gov.in",
+    "department": "DoIT&C Kota"
+  }
+]
