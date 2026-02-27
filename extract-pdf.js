@@ -21,8 +21,9 @@ async function extractEmployeeData() {
     console.log(`📄 Total lines: ${lines.length}`);
     
     const employees = [];
-    const seenNames = new Set(); // For duplicate detection
+    const seenNames = new Set();
     
+    // Rajasthan ke saare 33 districts (पूरी लिस्ट)
     const districts = [
       'AJMER', 'ALWAR', 'BANSWARA', 'BARAN', 'BARMER', 'BHARATPUR', 'BHILWARA',
       'BIKANER', 'BUNDI', 'CHITTORGARH', 'CHURU', 'DAUSA', 'DHOLPUR', 'DUNGARPUR',
@@ -31,49 +32,71 @@ async function extractEmployeeData() {
       'SAWAI MADHOPUR', 'SIKAR', 'SIROHI', 'SRI GANGANAGAR', 'TONK', 'UDAIPUR'
     ];
     
+    // Designations की सही लिस्ट
+    const designations = [
+      { pattern: /PROGRAMMER|PROGRAM MER|PROGRAM/i, name: 'Programmer' },
+      { pattern: /TECHNICAL ASSISTANT|TECHNICAL/i, name: 'Technical Assistant' },
+      { pattern: /SYSTEM ANALYST|SYSTEM/i, name: 'System Analyst' },
+      { pattern: /DIRECTOR|DIR/i, name: 'Director' },
+      { pattern: /ADDITIONAL DIRECTOR|ADDL DIRECTOR/i, name: 'Additional Director' },
+      { pattern: /JOINT DIRECTOR|JOINT/i, name: 'Joint Director' },
+      { pattern: /DEPUTY DIRECTOR|DEPUTY/i, name: 'Deputy Director' },
+      { pattern: /ASSISTANT DIRECTOR|ASST DIRECTOR/i, name: 'Assistant Director' },
+      { pattern: /OFFICER/i, name: 'Officer' },
+      { pattern: /SECTION OFFICER/i, name: 'Section Officer' },
+      { pattern: /ACCOUNTANT/i, name: 'Accountant' },
+      { pattern: /CLERK/i, name: 'Clerk' },
+      { pattern: /STENO/i, name: 'Stenographer' },
+      { pattern: /DRIVER/i, name: 'Driver' },
+      { pattern: /PEON/i, name: 'Peon' },
+      { pattern: /DATA ENTRY OPERATOR|DEO/i, name: 'Data Entry Operator' }
+    ];
+    
     let i = 0;
     let empCount = 0;
-    let duplicateCount = 0;
+    let skippedCount = 0;
     
     while (i < lines.length) {
       const line = lines[i].trim();
       
-      // Look for serial numbers
-      if (line.match(/^\d+$/) && parseInt(line) > 0 && parseInt(line) < 50000) {
+      // Serial numbers (1, 2, 3...)
+      if (line.match(/^\d+$/) && parseInt(line) > 0 && parseInt(line) < 10000) {
         empCount++;
         
-        if (empCount % 1000 === 0) {
+        if (empCount % 500 === 0) {
           console.log(`Processing employee #${empCount}...`);
         }
         
         const emp = {
           name: '',
-          designation: '',
+          designation: 'Staff',
           department: '',
-          district: '',
+          district: 'Jaipur',
           phone: '',
           email: ''
         };
         
-        // Get name (skip if it's a designation)
+        // नाम ढूंढो (अगली 3-4 लाइनों में)
         let nameLines = [];
         let j = i + 1;
         let nameFound = false;
         
-        while (j < lines.length && j < i + 6) {
+        while (j < lines.length && j < i + 6 && !nameFound) {
           const nameLine = lines[j].trim();
           
-          // Stop if we hit designation keywords
-          if (nameLine.includes('PROGRAM') || nameLine.includes('TECHNICAL') || 
-              nameLine.includes('ASSISTANT') || nameLine.includes('SYSTEM') ||
-              nameLine.includes('DIRECTOR') || nameLine.includes('OFFICER')) {
+          // Skip करो अगर ये डिज़िग्नेशन है
+          if (nameLine.match(/PROGRAMMER|TECHNICAL|DIRECTOR|OFFICER|ACCOUNTANT|CLERK|STENO|DRIVER|PEON/i)) {
             nameFound = true;
             break;
           }
           
-          // Collect name if it's valid
+          // नाम इकट्ठा करो (अगर ये सिर्फ कैपिटल लेटर्स में है)
           if (nameLine && nameLine.match(/^[A-Z][A-Z\s]+$/) && nameLine.length > 2) {
             nameLines.push(nameLine);
+          } else if (nameLines.length > 0) {
+            // अगर नाम मिलना बंद हो गया
+            nameFound = true;
+            break;
           }
           j++;
         }
@@ -81,69 +104,58 @@ async function extractEmployeeData() {
         if (nameLines.length >= 1) {
           emp.name = nameLines.join(' ').replace(/\s+/g, ' ').trim();
           
-          // Check for duplicates
+          // Duplicate check
           const nameKey = emp.name.toLowerCase().replace(/\s+/g, '');
           if (seenNames.has(nameKey)) {
-            duplicateCount++;
+            skippedCount++;
             i = j;
             continue;
           }
           seenNames.add(nameKey);
           
-          // Get designation
+          // Designation ढूंढो
           let k = i + nameLines.length + 1;
           while (k < lines.length && k < i + 10) {
-            const desigLine = lines[k].trim();
+            const desigLine = lines[k].trim().toUpperCase();
             
-            if (desigLine.includes('PROGRAM')) {
-              emp.designation = 'Programmer';
-              break;
-            } else if (desigLine.includes('TECHNICAL')) {
-              emp.designation = 'Technical Assistant';
-              break;
-            } else if (desigLine.includes('SYSTEM')) {
-              emp.designation = 'System Analyst';
-              break;
-            } else if (desigLine.includes('DIRECTOR')) {
-              if (desigLine.includes('ADDITIONAL')) emp.designation = 'Additional Director';
-              else if (desigLine.includes('JOINT')) emp.designation = 'Joint Director';
-              else if (desigLine.includes('DEPUTY')) emp.designation = 'Deputy Director';
-              else if (desigLine.includes('ASSISTANT')) emp.designation = 'Assistant Director';
-              else emp.designation = 'Director';
-              break;
-            } else if (desigLine.includes('OFFICER')) {
-              emp.designation = 'Officer';
-              break;
+            let found = false;
+            for (const d of designations) {
+              if (d.pattern.test(desigLine)) {
+                emp.designation = d.name;
+                found = true;
+                break;
+              }
             }
+            
+            if (found) break;
             k++;
           }
           
-          if (!emp.designation) {
-            emp.designation = 'Staff Member';
-          }
-          
-          // Get department and phone
+          // Department और Phone ढूंढो
           let deptLines = [];
-          let l = i + nameLines.length + 2;
-          let foundPhone = false;
+          let l = i + nameLines.length + 1;
+          let phoneFound = false;
           
-          while (l < lines.length && l < i + 25 && !foundPhone) {
+          while (l < lines.length && l < i + 20) {
             const infoLine = lines[l].trim();
             
-            // Check for phone
+            // Phone number ढूंढो
             const phoneMatch = infoLine.match(/\b[6-9]\d{9}\b/);
             if (phoneMatch) {
               emp.phone = phoneMatch[0];
-              foundPhone = true;
+              phoneFound = true;
             }
             
-            // Collect department (skip if it's just numbers)
-            if (infoLine && !infoLine.match(/^\d+$/) && !infoLine.includes('@')) {
-              deptLines.push(infoLine);
+            // Department line (अगर फोन नंबर नहीं है)
+            if (!phoneMatch && infoLine && !infoLine.match(/^\d+$/)) {
+              // बहुत लंबी लाइनों को मत जोड़ो
+              if (infoLine.length < 100) {
+                deptLines.push(infoLine);
+              }
             }
             
-            // Check for district
-            if (!emp.district) {
+            // District ढूंढो
+            if (!emp.district || emp.district === 'Jaipur') {
               for (const dist of districts) {
                 if (infoLine.toUpperCase().includes(dist)) {
                   emp.district = dist.charAt(0) + dist.slice(1).toLowerCase();
@@ -155,17 +167,20 @@ async function extractEmployeeData() {
             l++;
           }
           
-          emp.department = deptLines.join(' ').substring(0, 200) || 'DoIT&C Rajasthan';
-          emp.district = emp.district || 'Jaipur';
-          emp.phone = emp.phone || 'Contact Office';
+          // Department name clean करो
+          let deptStr = deptLines.join(' ');
+          deptStr = deptStr.replace(/\b[6-9]\d{9}\b/g, ''); // Phone numbers हटाओ
+          deptStr = deptStr.replace(/\s+/g, ' ').trim();
+          deptStr = deptStr.substring(0, 100); // लंबाई limit करो
           
-          // Get email
+          emp.department = deptStr || 'DoIT&C Rajasthan';
+          
+          // Email ढूंढो
           let emailStr = '';
           let m = i + nameLines.length + 5;
-          while (m < lines.length && m < i + 30) {
+          while (m < lines.length && m < i + 25) {
             const emailLine = lines[m].trim();
-            if (emailLine.includes('@') || emailLine.includes('doit') || 
-                emailLine.includes('rajasthan') || emailLine.includes('gov')) {
+            if (emailLine.includes('@') || emailLine.includes('doit') || emailLine.includes('rajasthan')) {
               emailStr += emailLine.replace(/\s+/g, '');
             } else if (emailStr && emailLine.match(/^[a-z]+/)) {
               emailStr += emailLine;
@@ -184,7 +199,6 @@ async function extractEmployeeData() {
             emp.email = emp.name.toLowerCase().replace(/\s+/g, '.') + '@rajasthan.gov.in';
           }
           
-          // Clean email
           emp.email = emp.email.replace(/[^a-z0-9@.]/g, '');
           
           employees.push({
@@ -197,7 +211,7 @@ async function extractEmployeeData() {
     }
     
     console.log(`\n✅ Total employees processed: ${empCount}`);
-    console.log(`✅ Duplicates removed: ${duplicateCount}`);
+    console.log(`✅ Duplicates skipped: ${skippedCount}`);
     console.log(`✅ Final unique employees: ${employees.length}`);
     
     // District statistics
@@ -207,11 +221,12 @@ async function extractEmployeeData() {
     });
     
     console.log('\n📊 District-wise distribution:');
-    Object.entries(districtCount)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([dist, count]) => {
-        console.log(`   ${dist}: ${count} employees`);
-      });
+    const sortedDistricts = Object.entries(districtCount).sort((a, b) => b[1] - a[1]);
+    sortedDistricts.forEach(([dist, count]) => {
+      console.log(`   ${dist}: ${count} employees`);
+    });
+    
+    console.log(`\n📊 Total Districts Found: ${sortedDistricts.length} / 33`);
     
     // Designation statistics
     const desigCount = {};
@@ -230,15 +245,25 @@ async function extractEmployeeData() {
     const outputPath = path.join(currentDir, 'src', 'employees.json');
     fs.writeFileSync(outputPath, JSON.stringify(employees, null, 2));
     
-    console.log(`\n✅ Data saved to: ${outputPath}`);
-    console.log('\n📋 Sample first 10 employees (no duplicates):');
-    employees.slice(0, 10).forEach((emp, i) => {
-      console.log(`${i+1}. ${emp.name} - ${emp.designation} (${emp.district})`);
+    console.log(`\n✅ Data saved to: ${output    consolePath}`);
+    console.log('\.log('\n📋 Samplen📋 Sample first 5 employees first :');
+5 employees:');
+    employees.slice(    employees0,.slice(0, 5 5).forEach((emp).forEach((emp, i, i) =>) => {
+      console.log {
+      console.log(`${i+1(`${i+1}. ${emp.name}. ${emp.name} - ${emp} - ${emp.design.designation} (${ation} (${emp.demp.district}) - ${empistrict}) - ${emp.phone.phone}`);
     });
     
-  } catch (error) {
-    console.error('❌ Error:', error);
+}`);
+    });
+    
+   } catch } catch (error (error) {
+) {
+    console    console.error('.error('❌❌ Error:', Error:', error);
+ error);
+  }
   }
 }
 
-extractEmployeeData();
+ext}
+
+extractEmployeeractEmployeeData();
