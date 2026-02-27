@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Phone, Mail, Briefcase, User, Loader, X, ChevronDown, ChevronUp, Filter, Download, RefreshCw } from 'lucide-react';
-import Fuse from 'fuse.js';
 import employeesData from './employees.json';
 
 function App() {
@@ -12,9 +11,15 @@ function App() {
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
-  const [recentSearches, setRecentSearches] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const itemsPerPage = 20;
+
+  // Check if data is loaded
+  useEffect(() => {
+    console.log('Total employees loaded:', employeesData.length);
+    setDataLoaded(true);
+  }, []);
 
   // Get unique departments for filter
   const departments = useMemo(() => {
@@ -25,39 +30,28 @@ function App() {
     return ['all', ...Array.from(depts)];
   }, []);
 
-  // Fuse.js configuration for fuzzy search
-  const fuseOptions = {
-    keys: [
-      { name: 'name', weight: 0.7 },
-      { name: 'designation', weight: 0.5 },
-      { name: 'department', weight: 0.4 },
-      { name: 'email', weight: 0.3 },
-      { name: 'phone', weight: 0.2 }
-    ],
-    threshold: 0.3,
-    includeScore: true,
-    ignoreLocation: true,
-    minMatchCharLength: 2
-  };
-
-  const fuse = useMemo(() => new Fuse(employeesData, fuseOptions), []);
-
+  // Simple search function (more reliable)
   useEffect(() => {
     if (searchTerm.length >= 2) {
       setLoading(true);
       setCurrentPage(1);
       
-      // Add to recent searches
-      if (!recentSearches.includes(searchTerm)) {
-        setRecentSearches(prev => [searchTerm, ...prev].slice(0, 5));
-      }
-      
       // Simulate API delay
       const timeoutId = setTimeout(() => {
-        const results = fuse.search(searchTerm);
-        let filteredResults = results.map(r => r.item);
+        // Direct filtering (more reliable than Fuse for now)
+        const filtered = employeesData.filter(emp => {
+          const searchLower = searchTerm.toLowerCase();
+          return (
+            (emp.name && emp.name.toLowerCase().includes(searchLower)) ||
+            (emp.designation && emp.designation.toLowerCase().includes(searchLower)) ||
+            (emp.department && emp.department.toLowerCase().includes(searchLower)) ||
+            (emp.email && emp.email.toLowerCase().includes(searchLower)) ||
+            (emp.phone && emp.phone.includes(searchTerm))
+          );
+        });
         
         // Apply department filter
+        let filteredResults = filtered;
         if (filterDepartment !== 'all') {
           filteredResults = filteredResults.filter(emp => emp.department === filterDepartment);
         }
@@ -87,7 +81,7 @@ function App() {
     } else {
       setSearchResults([]);
     }
-  }, [searchTerm, filterDepartment, sortBy, sortOrder, fuse]);
+  }, [searchTerm, filterDepartment, sortBy, sortOrder]);
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
@@ -131,6 +125,10 @@ function App() {
   );
 
   const totalPages = Math.ceil(searchResults.length / itemsPerPage);
+
+  if (!dataLoaded) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
@@ -262,24 +260,6 @@ function App() {
               </div>
             )}
 
-            {/* Recent Searches */}
-            {recentSearches.length > 0 && searchTerm.length < 2 && (
-              <div className="mt-4">
-                <p className="text-sm text-gray-600 mb-2">Recent searches:</p>
-                <div className="flex flex-wrap gap-2">
-                  {recentSearches.map((search, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSearchTerm(search)}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition"
-                    >
-                      {search}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Search Stats */}
             {searchTerm.length >= 2 && (
               <div className="mt-3 flex items-center justify-between text-sm">
@@ -289,7 +269,7 @@ function App() {
                 </div>
                 {searchResults.length > 0 && (
                   <button
-                    onClick={() => setSearchTerm('')}
+                    onClick={clearSearch}
                     className="text-indigo-600 hover:text-indigo-800 font-medium"
                   >
                     Clear results
@@ -387,6 +367,7 @@ function App() {
                     <div className="text-6xl mb-4">👥</div>
                     <h3 className="text-xl font-semibold text-gray-700 mb-2">Start Searching</h3>
                     <p className="text-gray-500">Type at least 2 characters to search</p>
+                    <p className="text-xs text-gray-400 mt-4">Total Employees: {employeesData.length}</p>
                   </div>
                 )}
               </div>
@@ -497,7 +478,7 @@ function App() {
 
                 {/* Quick Actions */}
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedEmployee.phone && (
+                  {selectedEmployee.phone && selectedEmployee.phone !== 'Contact office' && (
                     <a
                       href={`tel:${selectedEmployee.phone}`}
                       className="group bg-indigo-600 text-white py-4 px-6 rounded-xl text-center hover:bg-indigo-700 transition flex items-center justify-center space-x-3 transform hover:scale-105"
@@ -506,7 +487,7 @@ function App() {
                       <span className="font-semibold">Call Now</span>
                     </a>
                   )}
-                  {selectedEmployee.email && (
+                  {selectedEmployee.email && selectedEmployee.email !== 'contact@rajasthan.gov.in' && (
                     <a
                       href={`mailto:${selectedEmployee.email}`}
                       className="group bg-green-600 text-white py-4 px-6 rounded-xl text-center hover:bg-green-700 transition flex items-center justify-center space-x-3 transform hover:scale-105"
