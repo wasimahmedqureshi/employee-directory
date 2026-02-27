@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   const [employees, setEmployees] = useState([]);
@@ -280,8 +279,16 @@ function App() {
                     className="employee-card h-100" 
                     style={{background: 'white', borderRadius: '15px', padding: '20px', boxShadow: '0 5px 20px rgba(0,0,0,0.08)', cursor: 'pointer', border: '2px solid transparent', transition: 'all 0.3s'}}
                     onClick={() => setSelectedEmployee(emp)}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 15px 40px rgba(37,99,235,0.15)'; e.currentTarget.style.borderColor = '#2563eb'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 5px 20px rgba(0,0,0,0.08)'; e.currentTarget.style.borderColor = 'transparent'; }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(-5px)'; 
+                      e.currentTarget.style.boxShadow = '0 15px 40px rgba(37,99,235,0.15)'; 
+                      e.currentTarget.style.borderColor = '#2563eb'; 
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(0)'; 
+                      e.currentTarget.style.boxShadow = '0 5px 20px rgba(0,0,0,0.08)'; 
+                      e.currentTarget.style.borderColor = 'transparent'; 
+                    }}
                   >
                     <div className="d-flex align-items-center mb-3">
                       <div className="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
